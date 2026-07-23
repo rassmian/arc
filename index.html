@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Topside Clock — ARC Raiders Event Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b1210;
+    --panel:#131b19;
+    --panel2:#1a2422;
+    --line:#28342f;
+    --text:#e7e4d9;
+    --dim:#8fa199;
+    --amber:#e8a33d;
+    --rust:#c1502e;
+    --teal:#3f8f7e;
+    --danger:#d1453b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    padding:20px;
+    min-height:100vh;
+  }
+  .wrap{max-width:900px;margin:0 auto;}
+  .head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:12px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:16px;
+    margin-bottom:20px;
+  }
+  .title{
+    font-family:'Chakra Petch',sans-serif;
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    margin:0;
+  }
+  .title span{color:var(--amber);}
+  .sub{color:var(--dim);font-size:12px;letter-spacing:0.5px;margin-top:4px;text-transform:uppercase;}
+  .clock{
+    font-family:'JetBrains Mono',monospace;
+    font-size:28px;
+    font-weight:700;
+    color:var(--amber);
+    text-align:right;
+    line-height:1;
+  }
+  .clock small{display:block;font-size:11px;color:var(--dim);font-weight:400;font-family:'Inter',sans-serif;letter-spacing:1px;margin-top:4px;text-transform:uppercase;}
+  .status-bar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:10px 14px;
+    margin-bottom:20px;
+    font-size:12px;
+    color:var(--dim);
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .status-bar button{
+    background:var(--panel2);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    font-size:12px;
+    padding:6px 12px;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .status-bar button:hover{border-color:var(--amber);color:var(--amber);}
+  .day-tabs{display:flex;gap:8px;margin-bottom:16px;}
+  .day-tabs button{
+    flex:1;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--dim);
+    font-family:'Chakra Petch',sans-serif;
+    font-weight:600;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    font-size:13px;
+    padding:10px;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .day-tabs button.active{
+    border-color:var(--amber);
+    color:var(--amber);
+    background:var(--panel2);
+  }
+  .lanes{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:16px;
+    margin-bottom:24px;
+    overflow-x:auto;
+  }
+  .lane-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .lane-label{
+    width:100px;
+    flex-shrink:0;
+    font-size:11px;
+    color:var(--dim);
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  .lane-track{
+    position:relative;
+    flex:1;
+    height:22px;
+    background:var(--panel2);
+    border-radius:3px;
+    min-width:480px;
+  }
+  .lane-block{
+    position:absolute;
+    top:2px;
+    bottom:2px;
+    border-radius:2px;
+    font-size:10px;
+    color:#0b1210;
+    display:flex;
+    align-items:center;
+    padding-left:4px;
+    overflow:hidden;
+    white-space:nowrap;
+    cursor:default;
+  }
+  .hour-ticks{
+    display:flex;
+    margin-left:110px;
+    margin-top:4px;
+    min-width:480px;
+    font-size:9px;
+    color:var(--dim);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .hour-ticks span{flex:1;text-align:left;}
+  .now-line{
+    position:absolute;
+    top:-4px;
+    bottom:-4px;
+    width:2px;
+    background:var(--danger);
+    z-index:5;
+  }
+  .now-line::before{
+    content:'';
+    position:absolute;
+    top:-5px;
+    left:-3px;
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:var(--danger);
+  }
+  .list-head{
+    font-family:'Chakra Petch',sans-serif;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    font-size:13px;
+    color:var(--dim);
+    margin:24px 0 10px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:6px;
+  }
+  .card{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-left:3px solid var(--teal);
+    border-radius:6px;
+    padding:12px 14px;
+    margin-bottom:8px;
+    gap:12px;
+  }
+  .card.active{border-left-color:var(--danger);background:var(--panel2);}
+  .card.major{border-left-color:var(--rust);}
+  .card-main{min-width:0;}
+  .card-name{font-family:'Chakra Petch',sans-serif;font-weight:600;font-size:15px;}
+  .card-meta{font-size:12px;color:var(--dim);margin-top:2px;}
+  .card-time{
+    font-family:'JetBrains Mono',monospace;
+    text-align:right;
+    flex-shrink:0;
+  }
+  .card-window{font-size:12px;color:var(--dim);}
+  .card-countdown{font-size:16px;font-weight:700;color:var(--amber);}
+  .card.active .card-countdown{color:var(--danger);}
+  .badge{
+    display:inline-block;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    padding:2px 6px;
+    border-radius:3px;
+    background:var(--panel2);
+    color:var(--dim);
+    margin-right:6px;
+  }
+  .badge.active{background:var(--danger);color:#fff;}
+  .empty, .fallback{
+    text-align:center;
+    color:var(--dim);
+    padding:40px 20px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+  }
+  .fallback a{color:var(--amber);}
+  .ref-list{margin-top:20px;}
+  .ref-item{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:10px 14px;
+    margin-bottom:6px;
+  }
+  .ref-item .n{font-family:'Chakra Petch',sans-serif;font-weight:600;font-size:14px;color:var(--amber);}
+  .ref-item .d{font-size:12px;color:var(--dim);margin-top:2px;}
+  .attrib{text-align:center;font-size:11px;color:var(--dim);margin-top:24px;}
+  .attrib a{color:var(--dim);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div>
+      <p class="title">Arc Raiders <span>// Topside Clock</span></p>
+      <p class="sub">Live map event schedule</p>
+    </div>
+    <div class="clock" id="clock">--:--:--<small>Europe/London</small></div>
+  </div>
+
+  <div class="status-bar">
+    <span id="statusText">Connecting to event feed…</span>
+    <button id="refreshBtn">Refresh now</button>
+  </div>
+
+  <div class="day-tabs">
+    <button class="active" id="tabToday">Today</button>
+    <button id="tabTomorrow">Tomorrow</button>
+  </div>
+
+  <div id="lanesWrap" class="lanes" style="display:none;">
+    <div id="laneRows"></div>
+    <div class="hour-ticks" id="hourTicks"></div>
+  </div>
+
+  <div id="listWrap">
+    <div class="empty" id="loadingMsg">Loading event schedule…</div>
+  </div>
+
+  <div class="attrib">Live data from the MetaForge community API (metaforge.app) where available.</div>
+
+</div>
+
+<script>
+const WORKER_URL = "https://spring-truth-3ac3.ross-0f3.workers.dev";
+const API_URL = "https://metaforge.app/api/arc-raiders/events-schedule";
+const LONDON_TZ = "Europe/London";
+
+const EVENT_INFO = {
+  "night raid": {tier:"major", desc:"Map darkens with reduced visibility and altered enemy spawns."},
+  "matriarch": {tier:"major", desc:"An elite spider-like ARC boss appears. High risk, high reward."},
+  "harvester": {tier:"major", desc:"An extreme-threat ARC boss event. A massive machine appears."},
+  "electromagnetic storm": {tier:"major", desc:"Storms disrupt electronics but may unlock secret areas."},
+  "cold snap": {tier:"major", desc:"Severe cold weather hazard affecting the map."},
+  "hidden bunker": {tier:"minor", desc:"A bunker becomes accessible with valuable loot inside."},
+  "locked gate": {tier:"major", desc:"Locked areas open for a limited time, exclusive to Blue Gate."},
+  "close scrutiny": {tier:"major", desc:"An ARC operation map condition with heightened activity."},
+  "prospecting probes": {tier:"minor", desc:"ARC scanning probes appear across the map."},
+  "lush blooms": {tier:"minor", desc:"Calm weather brings dense food and resource spawns."},
+  "bird city": {tier:"minor", desc:"Flocks of birds appear, exclusive to Buried City."},
+  "launch tower loot": {tier:"minor", desc:"A vertical arena event with high-tier weapon crates, exclusive to Spaceport."},
+  "hurricane": {tier:"major", desc:"High winds affect movement and extractions."},
+  "beachcombing": {tier:"minor", desc:"Exclusive to Riven Tides, introduced in an update."},
+  "uncovered caches": {tier:"minor", desc:"Buried containers appear on a strict timer before they explode."}
+};
+
+const MAP_COLOR_ORDER = ["#c1502e","#3f8f7e","#e8a33d","#7a8fd1","#b06bc2","#5fae5f"];
+let mapColors = {};
+function colorForMap(map){
+  if(!mapColors[map]){
+    mapColors[map] = MAP_COLOR_ORDER[Object.keys(mapColors).length % MAP_COLOR_ORDER.length];
+  }
+  return mapColors[map];
+}
+
+function londonDateKey(d){
+  return new Intl.DateTimeFormat('en-CA',{timeZone:LONDON_TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+}
+function londonTimeStr(d){
+  return new Intl.DateTimeFormat('en-GB',{timeZone:LONDON_TZ,hour:'2-digit',minute:'2-digit',hour12:false}).format(d);
+}
+function londonHour(d){
+  return parseInt(new Intl.DateTimeFormat('en-GB',{timeZone:LONDON_TZ,hour:'2-digit',hour12:false}).format(d),10) % 24;
+}
+function londonMinuteOfDay(d){
+  const parts = new Intl.DateTimeFormat('en-GB',{timeZone:LONDON_TZ,hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(d);
+  let h=0,m=0;
+  parts.forEach(p=>{ if(p.type==='hour') h=parseInt(p.value,10)%24; if(p.type==='minute') m=parseInt(p.value,10); });
+  return h*60+m;
+}
+
+function looksLikeDate(v){
+  if(typeof v !== 'string') return false;
+  const t = Date.parse(v);
+  return !isNaN(t) && v.length >= 8;
+}
+
+function extractEvents(root){
+  const found = [];
+  const seen = new Set();
+  function isEventObj(o){
+    if(typeof o !== 'object' || o===null || Array.isArray(o)) return false;
+    let hasDate=false, hasName=false;
+    for(const k in o){
+      if(looksLikeDate(o[k]) && /start|begin|time|date|from/i.test(k)) hasDate=true;
+      if(typeof o[k]==='string' && /name|event|title|type|label/i.test(k) && o[k].length>1 && o[k].length<80) hasName=true;
+    }
+    return hasDate && hasName;
+  }
+  function walk(node){
+    if(Array.isArray(node)){
+      node.forEach(walk);
+    } else if(typeof node === 'object' && node !== null){
+      if(isEventObj(node)){
+        const key = JSON.stringify(node);
+        if(!seen.has(key)){ seen.add(key); found.push(node); }
+        return;
+      }
+      for(const k in node) walk(node[k]);
+    }
+  }
+  walk(root);
+  return found;
+}
+
+function pickField(obj, regex, exclude){
+  for(const k in obj){
+    if(regex.test(k) && (!exclude || !exclude.test(k))){
+      if(typeof obj[k]==='string' || typeof obj[k]==='number') return obj[k];
+    }
+  }
+  return null;
+}
+
+function normalizeEvent(raw){
+  const name = pickField(raw, /^(name|eventname|event|title|label)$/i) || pickField(raw, /name|title|event|label/i, /map|zone|sector|location/i);
+  const map = pickField(raw, /^(map|location|zone|sector)$/i) || pickField(raw, /map|zone|sector|location/i);
+  const icon = pickField(raw, /^(icon|image|img)$/i);
+  const startRaw = pickField(raw, /^(start|starttime|start_time|begin|begintime|from)$/i) || pickField(raw, /start|begin|from/i);
+  let endRaw = pickField(raw, /^(end|endtime|end_time|finish)$/i) || pickField(raw, /end|finish/i);
+  const start = startRaw ? new Date(Number(startRaw) || startRaw) : null;
+  if(!start || isNaN(start)) return null;
+  let end = endRaw ? new Date(Number(endRaw) || endRaw) : null;
+  if(!end || isNaN(end)) end = new Date(start.getTime() + 60*60*1000);
+  return {
+    name: name ? String(name) : "Unknown event",
+    map: map ? String(map) : "Unknown map",
+    icon: icon ? String(icon) : null,
+    start, end
+  };
+}
+
+function lookupInfo(name){
+  const key = name.toLowerCase().trim();
+  if(EVENT_INFO[key]) return EVENT_INFO[key];
+  for(const k in EVENT_INFO){
+    if(key.includes(k) || k.includes(key)) return EVENT_INFO[k];
+  }
+  return null;
+}
+
+let allEvents = [];
+let dayOffset = 0;
+let usingFallback = false;
+
+async function tryFetchJson(url, timeoutMs){
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), timeoutMs);
+  try{
+    const res = await fetch(url, {cache:"no-store", signal: controller.signal});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function loadEvents(){
+  const statusEl = document.getElementById('statusText');
+  statusEl.textContent = "Checking event feed…";
+  const attempts = [
+    { label: "your worker", url: WORKER_URL },
+    { label: "direct", url: API_URL },
+    { label: "public proxy", url: "https://api.allorigins.win/raw?url=" + encodeURIComponent(API_URL) }
+  ];
+  let lastErr = null;
+  for(const attempt of attempts){
+    try{
+      const json = await tryFetchJson(attempt.url, 7000);
+      const rawEvents = extractEvents(json);
+      const normalized = rawEvents.map(normalizeEvent).filter(Boolean);
+      if(normalized.length === 0) throw new Error("no recognizable events in response");
+      allEvents = normalized;
+      usingFallback = false;
+      statusEl.textContent = "Live (" + attempt.label + ") · last updated " + londonTimeStr(new Date()) + " UK time";
+      render();
+      return;
+    }catch(err){
+      lastErr = err;
+    }
+  }
+  usingFallback = true;
+  statusEl.textContent = "Live feed unavailable (" + (lastErr ? lastErr.message : "unknown error") + ") — showing reference info instead";
+  renderFallback();
+}
+
+function eventsForDay(offset){
+  const target = new Date(Date.now() + offset*86400000);
+  const key = londonDateKey(target);
+  return allEvents.filter(e => londonDateKey(e.start) === key).sort((a,b)=>a.start-b.start);
+}
+
+function fmtCountdown(ms){
+  if(ms < 0) ms = 0;
+  const totalSec = Math.floor(ms/1000);
+  const h = Math.floor(totalSec/3600);
+  const m = Math.floor((totalSec%3600)/60);
+  const s = totalSec%60;
+  const pad = n => String(n).padStart(2,'0');
+  return (h>0 ? h+':' : '') + pad(m) + ':' + pad(s);
+}
+
+function render(){
+  const events = eventsForDay(dayOffset);
+  const listWrap = document.getElementById('listWrap');
+  const lanesWrap = document.getElementById('lanesWrap');
+
+  if(events.length === 0){
+    lanesWrap.style.display = 'none';
+    listWrap.innerHTML = '<div class="empty">No scheduled events found for this day.</div>';
+    return;
+  }
+
+  lanesWrap.style.display = dayOffset === 0 ? 'block' : 'none';
+  if(dayOffset === 0) renderLanes(events);
+
+  const maps = {};
+  events.forEach(e=>{ (maps[e.map] = maps[e.map]||[]).push(e); });
+
+  let html = '';
+  events.forEach(e=>{
+    const now = new Date();
+    const active = now >= e.start && now < e.end;
+    const upcoming = now < e.start;
+    const info = lookupInfo(e.name);
+    const tier = info ? info.tier : 'minor';
+    html += '<div class="card ' + (active?'active ':'') + (tier==='major'?'major':'') + '" data-start="' + e.start.getTime() + '" data-end="' + e.end.getTime() + '">';
+    html += '<div class="card-main">';
+    html += '<span class="badge' + (active?' active':'') + '" style="background:' + (active?'':colorForMap(e.map)) + '">' + e.map + '</span>';
+    html += '<div class="card-name">' + (e.icon ? '<img src="'+e.icon+'" style="height:16px;width:16px;vertical-align:-3px;margin-right:6px;border-radius:3px;" onerror="this.style.display=\'none\'">' : '') + e.name + '</div>';
+    if(info) html += '<div class="card-meta">' + info.desc + '</div>';
+    html += '</div>';
+    html += '<div class="card-time">';
+    html += '<div class="card-window">' + londonTimeStr(e.start) + ' – ' + londonTimeStr(e.end) + '</div>';
+    html += '<div class="card-countdown countdown-val">' + (active ? 'active · ends in ' : 'starts in ') + '</div>';
+    html += '</div></div>';
+  });
+  listWrap.innerHTML = '<div class="list-head">' + (dayOffset===0?'Today':'Tomorrow') + ' · ' + events.length + ' event' + (events.length===1?'':'s') + '</div>' + html;
+
+  tickCountdowns();
+}
+
+function tickCountdowns(){
+  const cards = document.querySelectorAll('.card');
+  const now = new Date();
+  cards.forEach(c=>{
+    const start = parseInt(c.getAttribute('data-start'),10);
+    const end = parseInt(c.getAttribute('data-end'),10);
+    const label = c.querySelector('.countdown-val');
+    if(!label) return;
+    if(now.getTime() < start){
+      label.textContent = 'starts in ' + fmtCountdown(start - now.getTime());
+      c.classList.remove('active');
+    } else if(now.getTime() < end){
+      label.textContent = 'active · ends in ' + fmtCountdown(end - now.getTime());
+      c.classList.add('active');
+    } else {
+      label.textContent = 'ended';
+      c.classList.remove('active');
+    }
+  });
+}
+
+function renderLanes(events){
+  const maps = {};
+  events.forEach(e=>{ (maps[e.map] = maps[e.map]||[]).push(e); });
+  const laneRows = document.getElementById('laneRows');
+  const hourTicks = document.getElementById('hourTicks');
+  let rowsHtml = '';
+  const nowMin = londonMinuteOfDay(new Date());
+  Object.keys(maps).forEach(map=>{
+    rowsHtml += '<div class="lane-row"><div class="lane-label">' + map + '</div><div class="lane-track">';
+    maps[map].forEach(e=>{
+      const startMin = londonMinuteOfDay(e.start);
+      const endMin = Math.min(1440, startMin + (e.end - e.start)/60000);
+      const left = (startMin/1440*100).toFixed(2);
+      const width = Math.max(0.6, ((endMin-startMin)/1440*100)).toFixed(2);
+      rowsHtml += '<div class="lane-block" style="left:' + left + '%;width:' + width + '%;background:' + colorForMap(map) + ';" title="' + e.name + ' ' + londonTimeStr(e.start) + '-' + londonTimeStr(e.end) + '">' + e.name + '</div>';
+    });
+    rowsHtml += '<div class="now-line" style="left:' + (nowMin/1440*100).toFixed(2) + '%;"></div>';
+    rowsHtml += '</div></div>';
+  });
+  laneRows.innerHTML = rowsHtml;
+  let ticksHtml = '';
+  for(let h=0; h<24; h+=2) ticksHtml += '<span>' + String(h).padStart(2,'0') + '</span>';
+  hourTicks.innerHTML = ticksHtml;
+}
+
+function renderFallback(){
+  document.getElementById('lanesWrap').style.display = 'none';
+  const listWrap = document.getElementById('listWrap');
+  let html = '<div class="fallback">Couldn\'t reach the live schedule from this page (the API may block browser requests from here). ';
+  html += 'Check <a href="https://metaforge.app/arc-raiders/event-timers" target="_blank">metaforge.app/arc-raiders/event-timers</a> directly for live countdowns.</div>';
+  html += '<div class="list-head">Known event types</div><div class="ref-list">';
+  Object.keys(EVENT_INFO).forEach(key=>{
+    const info = EVENT_INFO[key];
+    const nice = key.replace(/\b\w/g, c=>c.toUpperCase());
+    html += '<div class="ref-item"><div class="n">' + nice + '</div><div class="d">' + info.desc + '</div></div>';
+  });
+  html += '</div>';
+  listWrap.innerHTML = html;
+}
+
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock').innerHTML = new Intl.DateTimeFormat('en-GB',{timeZone:LONDON_TZ,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now) + '<small>Europe/London</small>';
+}
+
+document.getElementById('tabToday').addEventListener('click', ()=>{
+  dayOffset = 0;
+  document.getElementById('tabToday').classList.add('active');
+  document.getElementById('tabTomorrow').classList.remove('active');
+  if(usingFallback) renderFallback(); else render();
+});
+document.getElementById('tabTomorrow').addEventListener('click', ()=>{
+  dayOffset = 1;
+  document.getElementById('tabTomorrow').classList.add('active');
+  document.getElementById('tabToday').classList.remove('active');
+  if(usingFallback) renderFallback(); else render();
+});
+document.getElementById('refreshBtn').addEventListener('click', loadEvents);
+
+updateClock();
+setInterval(updateClock, 1000);
+setInterval(()=>{ if(!usingFallback) tickCountdowns(); }, 1000);
+setInterval(loadEvents, 60000);
+loadEvents();
+</script>
+</body>
+</html>
