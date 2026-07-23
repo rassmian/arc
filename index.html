@@ -247,7 +247,7 @@
   <div class="head">
     <div>
       <p class="title">Arc Raiders <span>// Topside Clock</span></p>
-      <p class="sub">Live map event schedule</p>
+      <p class="sub">Live map event schedule <span id="versionTag" style="opacity:0.6;"></span></p>
     </div>
     <div class="clock" id="clock">--:--:--<small>Europe/London</small></div>
   </div>
@@ -276,6 +276,7 @@
 </div>
 
 <script>
+const APP_VERSION = "1.1.0";
 const WORKER_URL = "https://spring-truth-3ac3.ross-0f3.workers.dev";
 const API_URL = "https://metaforge.app/api/arc-raiders/events-schedule";
 const LONDON_TZ = "Europe/London";
@@ -577,6 +578,7 @@ document.getElementById('tabTomorrow').addEventListener('click', ()=>{
 });
 document.getElementById('refreshBtn').addEventListener('click', loadEvents);
 
+document.getElementById('versionTag').textContent = 'v' + APP_VERSION;
 updateClock();
 setInterval(updateClock, 1000);
 setInterval(()=>{ if(!usingFallback) tickCountdowns(); }, 1000);
