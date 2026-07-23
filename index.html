@@ -324,6 +324,9 @@ function londonMinuteOfDay(d){
 }
 
 function looksLikeDate(v){
+  if(typeof v === 'number'){
+    return v > 1000000000000 && v < 4000000000000;
+  }
   if(typeof v !== 'string') return false;
   const t = Date.parse(v);
   return !isNaN(t) && v.length >= 8;
