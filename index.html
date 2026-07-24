@@ -478,7 +478,7 @@
 </div>
 
 <script>
-const APP_VERSION = "2.2.1";
+const APP_VERSION = "2.2.3";
 const WORKER_URL = "https://spring-truth-3ac3.ross-0f3.workers.dev";
 const API_URL = "https://metaforge.app/api/arc-raiders/events-schedule";
 const LONDON_TZ = "Europe/London";
@@ -665,7 +665,16 @@ function loadFilters(){
     const raw = localStorage.getItem(FILTERS_STORAGE_KEY);
     if(!raw) return defaultFilters();
     const parsed = JSON.parse(raw);
-    return Object.assign(defaultFilters(), parsed);
+    const merged = Object.assign(defaultFilters(), parsed);
+    // Merge in any event types added to EVENT_INFO since this was last saved (e.g. Husk Graveyard),
+    // so they default to active rather than silently missing from an older saved filter set.
+    if(Array.isArray(parsed.types)){
+      const savedSet = new Set(parsed.types);
+      const allKeys = Object.keys(EVENT_INFO);
+      const newlyAdded = allKeys.filter(k => !savedSet.has(k));
+      merged.types = parsed.types.concat(newlyAdded);
+    }
+    return merged;
   }catch(e){
     return defaultFilters();
   }
@@ -723,6 +732,19 @@ function renderTierUI(){
   }).join('');
 }
 
+function reconcileFilterTypes(){
+  let changed = false;
+  const matchesAny = (typeKey) => filters.types.some(t => typeKey===t || typeKey.includes(t) || t.includes(typeKey));
+  allEvents.forEach(e=>{
+    const key = e.name.toLowerCase().trim();
+    if(!matchesAny(key)){
+      filters.types.push(key);
+      changed = true;
+    }
+  });
+  if(changed) saveFilters();
+}
+
 function rerenderAfterFilterChange(){
   saveFilters();
   if(usingFallback) renderFallback(); else render();
@@ -761,7 +783,9 @@ async function loadEvents(){
       if(normalized.length === 0) throw new Error("no recognizable events in response");
       allEvents = normalized;
       usingFallback = false;
+      reconcileFilterTypes();
       renderTierUI();
+      renderFilterUI();
       statusEl.textContent = "Live · updated " + londonTimeStr(new Date()) + " UK time";
       render();
       return;
