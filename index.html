@@ -150,6 +150,11 @@
     cursor:pointer;
   }
   .filters-toggle:hover{border-color:var(--amber);color:var(--amber);}
+  .filters-toggle.open{
+    border-color:var(--amber);
+    color:var(--amber);
+    background:var(--panel2);
+  }
   .toggle-switch-wrap{display:flex;align-items:center;gap:8px;}
   .toggle-switch-label{
     font-size:12px;
@@ -241,6 +246,17 @@
     cursor:pointer;
   }
   .chip-action:hover{border-color:var(--amber);color:var(--amber);}
+  .tier-chip{display:inline-flex;align-items:center;gap:6px;}
+  .tier-tag{
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    padding:1px 6px;
+    border-radius:8px;
+  }
+  .tier-chip.tier-major{border-color:var(--rust);}
+  .tier-chip.tier-major .tier-tag{background:var(--rust);color:#fff;}
+  .tier-chip.tier-minor .tier-tag{background:var(--panel2);color:var(--dim);}
   .lanes{
     background:var(--panel);
     border:1px solid var(--line);
@@ -439,6 +455,11 @@
       </div>
       <div class="chip-row" id="typeChips"></div>
     </div>
+    <div class="filter-group">
+      <label class="filter-label">Event tiers</label>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:8px;">Tap an event to switch it between major and minor. Saved on this device — use this for any new event MetaForge adds that isn't classified yet.</div>
+      <div class="chip-row" id="tierChips"></div>
+    </div>
   </div>
 
   <!-- Timeline strip disabled per v2 plan decision #2 (kept commented out, not deleted, in case we bring it back)
@@ -457,27 +478,28 @@
 </div>
 
 <script>
-const APP_VERSION = "2.1.1";
+const APP_VERSION = "2.2.1";
 const WORKER_URL = "https://spring-truth-3ac3.ross-0f3.workers.dev";
 const API_URL = "https://metaforge.app/api/arc-raiders/events-schedule";
 const LONDON_TZ = "Europe/London";
 
 const EVENT_INFO = {
   "night raid": {tier:"major", desc:"Map darkens with reduced visibility and altered enemy spawns."},
-  "matriarch": {tier:"major", desc:"An elite spider-like ARC boss appears. High risk, high reward."},
-  "harvester": {tier:"major", desc:"An extreme-threat ARC boss event. A massive machine appears."},
   "electromagnetic storm": {tier:"major", desc:"Storms disrupt electronics but may unlock secret areas."},
   "cold snap": {tier:"major", desc:"Severe cold weather hazard affecting the map."},
-  "hidden bunker": {tier:"minor", desc:"A bunker becomes accessible with valuable loot inside."},
+  "hidden bunker": {tier:"major", desc:"A bunker becomes accessible with valuable loot inside."},
   "locked gate": {tier:"major", desc:"Locked areas open for a limited time, exclusive to Blue Gate."},
   "close scrutiny": {tier:"major", desc:"An ARC operation map condition with heightened activity."},
+  "hurricane": {tier:"major", desc:"High winds affect movement and extractions."},
+  "matriarch": {tier:"minor", desc:"An elite spider-like ARC boss appears. High risk, high reward."},
+  "harvester": {tier:"minor", desc:"An extreme-threat ARC boss event. A massive machine appears."},
   "prospecting probes": {tier:"minor", desc:"ARC scanning probes appear across the map."},
   "lush blooms": {tier:"minor", desc:"Calm weather brings dense food and resource spawns."},
   "bird city": {tier:"minor", desc:"Flocks of birds appear, exclusive to Buried City."},
   "launch tower loot": {tier:"minor", desc:"A vertical arena event with high-tier weapon crates, exclusive to Spaceport."},
-  "hurricane": {tier:"major", desc:"High winds affect movement and extractions."},
   "beachcombing": {tier:"minor", desc:"Exclusive to Riven Tides, introduced in an update."},
-  "uncovered caches": {tier:"minor", desc:"Buried containers appear on a strict timer before they explode."}
+  "uncovered caches": {tier:"minor", desc:"Buried containers appear on a strict timer before they explode."},
+  "husk graveyard": {tier:"minor", desc:"A low-combat, high-salvage event with a short active window."}
 };
 
 const MAP_COLOR_ORDER = ["#c1502e","#3f8f7e","#e8a33d","#7a8fd1","#b06bc2","#5fae5f"];
@@ -595,6 +617,37 @@ function lookupInfo(name){
   return null;
 }
 
+const TIER_OVERRIDES_KEY = "arc-tracker-tier-overrides";
+function loadTierOverrides(){
+  try{
+    const raw = localStorage.getItem(TIER_OVERRIDES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){
+    return {};
+  }
+}
+function saveTierOverrides(){
+  try{ localStorage.setItem(TIER_OVERRIDES_KEY, JSON.stringify(tierOverrides)); }catch(e){ /* storage unavailable, ignore */ }
+}
+let tierOverrides = loadTierOverrides();
+
+function getTier(name){
+  const key = name.toLowerCase().trim();
+  if(tierOverrides[key]) return tierOverrides[key];
+  const info = lookupInfo(name);
+  return info ? info.tier : "minor";
+}
+function setTier(name, tier){
+  const key = name.toLowerCase().trim();
+  tierOverrides[key] = tier;
+  saveTierOverrides();
+}
+function getAllKnownEventNames(){
+  const names = new Set(Object.keys(EVENT_INFO));
+  allEvents.forEach(e => names.add(e.name.toLowerCase().trim()));
+  return Array.from(names).sort();
+}
+
 const MAP_LIST = ["Dam Battlegrounds","Spaceport","Buried City","Blue Gate","Stella Montis","Riven Tides"];
 const FILTERS_STORAGE_KEY = "arc-tracker-filters";
 
@@ -630,8 +683,7 @@ function applyFilters(events){
     const typeKey = e.name.toLowerCase().trim();
     if(!filters.types.some(t => typeKey===t || typeKey.includes(t) || t.includes(typeKey))) return false;
     if(filters.majorOnly){
-      const info = lookupInfo(e.name);
-      if(!info || info.tier !== "major") return false;
+      if(getTier(e.name) !== "major") return false;
     }
     if(filters.activeNow){
       if(!(now >= e.start && now < e.end)) return false;
@@ -658,6 +710,16 @@ function renderFilterUI(){
   typeChips.innerHTML = Object.keys(EVENT_INFO).map(k => {
     const nice = k.replace(/\b\w/g, c => c.toUpperCase());
     return '<button class="chip' + (filters.types.includes(k) ? ' active' : '') + '" data-type="' + k + '">' + nice + '</button>';
+  }).join('');
+}
+
+function renderTierUI(){
+  const tierChips = document.getElementById('tierChips');
+  const names = getAllKnownEventNames();
+  tierChips.innerHTML = names.map(key => {
+    const nice = key.replace(/\b\w/g, c => c.toUpperCase());
+    const tier = getTier(key);
+    return '<button class="chip tier-chip ' + (tier==='major' ? 'tier-major' : 'tier-minor') + '" data-name="' + key + '">' + nice + ' <span class="tier-tag">' + (tier==='major'?'Major':'Minor') + '</span></button>';
   }).join('');
 }
 
@@ -699,6 +761,7 @@ async function loadEvents(){
       if(normalized.length === 0) throw new Error("no recognizable events in response");
       allEvents = normalized;
       usingFallback = false;
+      renderTierUI();
       statusEl.textContent = "Live · updated " + londonTimeStr(new Date()) + " UK time";
       render();
       return;
@@ -747,8 +810,7 @@ function render(){
     const now = new Date();
     const active = now >= e.start && now < e.end;
     const upcoming = now < e.start;
-    const info = lookupInfo(e.name);
-    const tier = info ? info.tier : 'minor';
+    const tier = getTier(e.name);
     html += '<div class="card ' + (active?'active ':'') + (tier==='major'?'major':'') + '" data-start="' + e.start.getTime() + '" data-end="' + e.end.getTime() + '">';
     html += '<div class="card-main">';
     const badgeBg = colorForMap(e.map);
@@ -865,6 +927,7 @@ document.getElementById('filtersToggleBtn').addEventListener('click', ()=>{
   const showing = panel.style.display !== 'none';
   panel.style.display = showing ? 'none' : 'block';
   btn.textContent = showing ? 'Filters ▾' : 'Filters ▴';
+  btn.classList.toggle('open', !showing);
 });
 document.getElementById('timeRangeSelect').addEventListener('change', e=>{
   filters.timeRange = e.target.value;
@@ -909,8 +972,18 @@ document.getElementById('typesClearAll').addEventListener('click', ()=>{
   renderFilterUI();
   rerenderAfterFilterChange();
 });
+document.getElementById('tierChips').addEventListener('click', e=>{
+  const btn = e.target.closest('.tier-chip');
+  if(!btn) return;
+  const key = btn.getAttribute('data-name');
+  const next = getTier(key) === 'major' ? 'minor' : 'major';
+  setTier(key, next);
+  renderTierUI();
+  if(usingFallback) renderFallback(); else render();
+});
 
 renderFilterUI();
+renderTierUI();
 document.getElementById('versionTag').textContent = 'v' + APP_VERSION;
 updateClock();
 setInterval(updateClock, 1000);
