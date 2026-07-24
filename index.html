@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Topside Clock — ARC Raiders Event Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Event Timer">
+<meta name="theme-color" content="#0b1210">
+<title>Event Timer — ARC Raiders Event Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -27,9 +32,22 @@
     color:var(--text);
     font-family:'Inter',sans-serif;
     padding:20px;
+    padding-top:calc(20px + env(safe-area-inset-top));
+    padding-bottom:calc(20px + env(safe-area-inset-bottom));
     min-height:100vh;
   }
   .wrap{max-width:900px;margin:0 auto;}
+  @media (max-width:400px){
+    body{padding:12px;padding-top:calc(12px + env(safe-area-inset-top));padding-bottom:calc(12px + env(safe-area-inset-bottom));}
+    .title{font-size:18px;}
+    .clock{font-size:22px;}
+    .day-tabs button{padding:12px 8px;font-size:12px;}
+    .card{padding:10px 12px;}
+    .card-name{font-size:14px;}
+    .chip{padding:9px 12px;font-size:13px;}
+    .filters-toggle{padding:11px 14px;}
+    .status-bar button{padding:9px 14px;}
+  }
   .head{
     display:flex;
     justify-content:space-between;
@@ -40,6 +58,7 @@
     padding-bottom:16px;
     margin-bottom:20px;
   }
+  .head-titles{min-width:0;flex:1;}
   .title{
     font-family:'Chakra Petch',sans-serif;
     font-weight:700;
@@ -47,9 +66,21 @@
     letter-spacing:1px;
     text-transform:uppercase;
     margin:0;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
   .title span{color:var(--amber);}
-  .sub{color:var(--dim);font-size:12px;letter-spacing:0.5px;margin-top:4px;text-transform:uppercase;}
+  .sub-inline{
+    display:inline;
+    color:var(--dim);
+    font-size:12px;
+    letter-spacing:0.5px;
+    text-transform:none;
+    font-family:'Inter',sans-serif;
+    font-weight:400;
+    margin-left:10px;
+  }
   .clock{
     font-family:'JetBrains Mono',monospace;
     font-size:28px;
@@ -104,6 +135,74 @@
     color:var(--amber);
     background:var(--panel2);
   }
+  .filters-toggle-row{margin-bottom:10px;}
+  .filters-toggle{
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--dim);
+    font-family:'Chakra Petch',sans-serif;
+    font-weight:600;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    font-size:12px;
+    padding:8px 12px;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .filters-toggle:hover{border-color:var(--amber);color:var(--amber);}
+  .filters-panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px;
+    margin-bottom:16px;
+  }
+  .filter-group{margin-bottom:14px;}
+  .filter-group:last-child{margin-bottom:0;}
+  .filter-label{
+    display:block;
+    font-size:11px;
+    color:var(--dim);
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    margin-bottom:6px;
+  }
+  .filter-group select{
+    background:var(--panel2);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    padding:8px 10px;
+    border-radius:4px;
+    width:100%;
+  }
+  .filter-toggles{display:flex;flex-direction:column;gap:8px;}
+  .toggle-label{font-size:13px;color:var(--text);display:flex;align-items:center;gap:8px;}
+  .toggle-label input{width:16px;height:16px;}
+  .chip-row{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{
+    background:var(--panel2);
+    border:1px solid var(--line);
+    color:var(--dim);
+    font-family:'Inter',sans-serif;
+    font-size:12px;
+    padding:6px 10px;
+    border-radius:14px;
+    cursor:pointer;
+  }
+  .chip.active{border-color:var(--amber);color:var(--amber);background:rgba(232,163,61,0.1);}
+  .chip-actions{display:flex;gap:8px;margin-bottom:8px;}
+  .chip-action{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--dim);
+    font-size:11px;
+    padding:4px 10px;
+    border-radius:10px;
+    cursor:pointer;
+  }
+  .chip-action:hover{border-color:var(--amber);color:var(--amber);}
   .lanes{
     background:var(--panel);
     border:1px solid var(--line);
@@ -196,8 +295,14 @@
   .card.active{border-left-color:var(--danger);background:var(--panel2);}
   .card.major{border-left-color:var(--rust);}
   .card-main{min-width:0;}
-  .card-name{font-family:'Chakra Petch',sans-serif;font-weight:600;font-size:15px;}
-  .card-meta{font-size:12px;color:var(--dim);margin-top:2px;}
+  .card-name{
+    font-family:'Chakra Petch',sans-serif;
+    font-weight:600;
+    font-size:15px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
   .card-time{
     font-family:'JetBrains Mono',monospace;
     text-align:right;
@@ -245,9 +350,8 @@
 <div class="wrap">
 
   <div class="head">
-    <div>
-      <p class="title">Arc Raiders <span>// Topside Clock</span></p>
-      <p class="sub">Live map event schedule <span id="versionTag" style="opacity:0.6;"></span></p>
+    <div class="head-titles">
+      <p class="title">Arc Raiders <span>// Event Timer</span><span class="sub-inline">Live map event schedule <span id="versionTag" style="opacity:0.6;"></span></span></p>
     </div>
     <div class="clock" id="clock">--:--:--<small>Europe/London</small></div>
   </div>
@@ -262,10 +366,44 @@
     <button id="tabTomorrow">Tomorrow</button>
   </div>
 
+  <div class="filters-toggle-row">
+    <button id="filtersToggleBtn" class="filters-toggle">Filters ▾</button>
+  </div>
+  <div id="filtersPanel" class="filters-panel" style="display:none;">
+    <div class="filter-group">
+      <label class="filter-label">Time range</label>
+      <select id="timeRangeSelect">
+        <option value="1h">Next 1 hour</option>
+        <option value="4h">Next 4 hours</option>
+        <option value="8h">Next 8 hours</option>
+        <option value="12h">Next 12 hours</option>
+        <option value="all">All day</option>
+      </select>
+    </div>
+    <div class="filter-group filter-toggles">
+      <label class="toggle-label"><input type="checkbox" id="majorOnlyToggle"> Major events only</label>
+      <label class="toggle-label"><input type="checkbox" id="activeNowToggle"> Active now only</label>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Maps</label>
+      <div class="chip-row" id="mapChips"></div>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Event types</label>
+      <div class="chip-actions">
+        <button id="typesSelectAll" class="chip-action">All</button>
+        <button id="typesClearAll" class="chip-action">None</button>
+      </div>
+      <div class="chip-row" id="typeChips"></div>
+    </div>
+  </div>
+
+  <!-- Timeline strip disabled per v2 plan decision #2 (kept commented out, not deleted, in case we bring it back)
   <div id="lanesWrap" class="lanes" style="display:none;">
     <div id="laneRows"></div>
     <div class="hour-ticks" id="hourTicks"></div>
   </div>
+  -->
 
   <div id="listWrap">
     <div class="empty" id="loadingMsg">Loading event schedule…</div>
@@ -276,7 +414,7 @@
 </div>
 
 <script>
-const APP_VERSION = "1.1.1";
+const APP_VERSION = "2.0.0";
 const WORKER_URL = "https://spring-truth-3ac3.ross-0f3.workers.dev";
 const API_URL = "https://metaforge.app/api/arc-raiders/events-schedule";
 const LONDON_TZ = "Europe/London";
@@ -308,11 +446,28 @@ function colorForMap(map){
   return mapColors[map];
 }
 
+function hexToRgb(hex){
+  hex = hex.replace('#','');
+  if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+  const num = parseInt(hex,16);
+  return {r:(num>>16)&255, g:(num>>8)&255, b:num&255};
+}
+function textColorForBg(hex){
+  const {r,g,b} = hexToRgb(hex);
+  const lum = (0.299*r + 0.587*g + 0.114*b)/255;
+  return lum > 0.55 ? '#0b1210' : '#ffffff';
+}
+
 function londonDateKey(d){
   return new Intl.DateTimeFormat('en-CA',{timeZone:LONDON_TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
 }
 function londonTimeStr(d){
-  return new Intl.DateTimeFormat('en-GB',{timeZone:LONDON_TZ,hour:'2-digit',minute:'2-digit',hour12:false}).format(d);
+  const parts = new Intl.DateTimeFormat('en-GB',{timeZone:LONDON_TZ,hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(d);
+  let h=0,m=0;
+  parts.forEach(p=>{ if(p.type==='hour') h=parseInt(p.value,10)%24; if(p.type==='minute') m=parseInt(p.value,10); });
+  const ampm = h>=12 ? 'pm' : 'am';
+  let h12 = h%12; if(h12===0) h12=12;
+  return h12 + ':' + String(m).padStart(2,'0') + ' ' + ampm;
 }
 function londonHour(d){
   return parseInt(new Intl.DateTimeFormat('en-GB',{timeZone:LONDON_TZ,hour:'2-digit',hour12:false}).format(d),10) % 24;
@@ -397,6 +552,75 @@ function lookupInfo(name){
   return null;
 }
 
+const MAP_LIST = ["Dam Battlegrounds","Spaceport","Buried City","Blue Gate","Stella Montis","Riven Tides"];
+const FILTERS_STORAGE_KEY = "arc-tracker-filters";
+
+function defaultFilters(){
+  return {
+    timeRange: "all",
+    maps: MAP_LIST.slice(),
+    types: Object.keys(EVENT_INFO).slice(),
+    majorOnly: false,
+    activeNow: false
+  };
+}
+function loadFilters(){
+  try{
+    const raw = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if(!raw) return defaultFilters();
+    const parsed = JSON.parse(raw);
+    return Object.assign(defaultFilters(), parsed);
+  }catch(e){
+    return defaultFilters();
+  }
+}
+function saveFilters(){
+  try{ localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters)); }catch(e){ /* storage unavailable, ignore */ }
+}
+let filters = loadFilters();
+
+function applyFilters(events){
+  const now = new Date();
+  const rangeHours = {"1h":1, "4h":4, "8h":8, "12h":12};
+  return events.filter(e=>{
+    if(!filters.maps.includes(e.map)) return false;
+    const typeKey = e.name.toLowerCase().trim();
+    if(!filters.types.some(t => typeKey===t || typeKey.includes(t) || t.includes(typeKey))) return false;
+    if(filters.majorOnly){
+      const info = lookupInfo(e.name);
+      if(!info || info.tier !== "major") return false;
+    }
+    if(filters.activeNow){
+      if(!(now >= e.start && now < e.end)) return false;
+    }
+    if(filters.timeRange !== "all"){
+      const rangeMs = rangeHours[filters.timeRange] * 3600000;
+      if(!(e.start >= now && (e.start - now) <= rangeMs)) return false;
+    }
+    return true;
+  });
+}
+
+function renderFilterUI(){
+  document.getElementById('timeRangeSelect').value = filters.timeRange;
+  document.getElementById('majorOnlyToggle').checked = filters.majorOnly;
+  document.getElementById('activeNowToggle').checked = filters.activeNow;
+  const mapChips = document.getElementById('mapChips');
+  mapChips.innerHTML = MAP_LIST.map(m =>
+    '<button class="chip' + (filters.maps.includes(m) ? ' active' : '') + '" data-map="' + m + '">' + m + '</button>'
+  ).join('');
+  const typeChips = document.getElementById('typeChips');
+  typeChips.innerHTML = Object.keys(EVENT_INFO).map(k => {
+    const nice = k.replace(/\b\w/g, c => c.toUpperCase());
+    return '<button class="chip' + (filters.types.includes(k) ? ' active' : '') + '" data-type="' + k + '">' + nice + '</button>';
+  }).join('');
+}
+
+function rerenderAfterFilterChange(){
+  saveFilters();
+  if(usingFallback) renderFallback(); else render();
+}
+
 let allEvents = [];
 let dayOffset = 0;
 let usingFallback = false;
@@ -459,21 +683,19 @@ function fmtCountdown(ms){
 }
 
 function render(){
-  const events = eventsForDay(dayOffset);
+  const dayEvents = eventsForDay(dayOffset);
+  const events = applyFilters(dayEvents);
   const listWrap = document.getElementById('listWrap');
-  const lanesWrap = document.getElementById('lanesWrap');
+  // Timeline strip disabled per v2 plan decision #2 — lanesWrap no longer in DOM, renderLanes() no longer called
 
-  if(events.length === 0){
-    lanesWrap.style.display = 'none';
+  if(dayEvents.length === 0){
     listWrap.innerHTML = '<div class="empty">No scheduled events found for this day.</div>';
     return;
   }
-
-  lanesWrap.style.display = dayOffset === 0 ? 'block' : 'none';
-  if(dayOffset === 0) renderLanes(events);
-
-  const maps = {};
-  events.forEach(e=>{ (maps[e.map] = maps[e.map]||[]).push(e); });
+  if(events.length === 0){
+    listWrap.innerHTML = '<div class="empty">No events match the current filters.</div>';
+    return;
+  }
 
   let html = '';
   events.forEach(e=>{
@@ -484,16 +706,19 @@ function render(){
     const tier = info ? info.tier : 'minor';
     html += '<div class="card ' + (active?'active ':'') + (tier==='major'?'major':'') + '" data-start="' + e.start.getTime() + '" data-end="' + e.end.getTime() + '">';
     html += '<div class="card-main">';
-    html += '<span class="badge' + (active?' active':'') + '" style="background:' + (active?'':colorForMap(e.map)) + '">' + e.map + '</span>';
-    html += '<div class="card-name">' + (e.icon ? '<img src="'+e.icon+'" style="height:16px;width:16px;vertical-align:-3px;margin-right:6px;border-radius:3px;" onerror="this.style.display=\'none\'">' : '') + e.name + '</div>';
-    if(info) html += '<div class="card-meta">' + info.desc + '</div>';
+    const badgeBg = colorForMap(e.map);
+    const badgeTextColor = active ? '#ffffff' : textColorForBg(badgeBg);
+    html += '<span class="badge' + (active?' active':'') + '" style="background:' + (active?'':badgeBg) + ';color:' + badgeTextColor + ';">' + e.map + '</span>';
+    html += '<div class="card-name">' + e.name + '</div>';
     html += '</div>';
     html += '<div class="card-time">';
     html += '<div class="card-window">' + londonTimeStr(e.start) + ' – ' + londonTimeStr(e.end) + '</div>';
     html += '<div class="card-countdown countdown-val">' + (active ? 'active · ends in ' : 'starts in ') + '</div>';
     html += '</div></div>';
   });
-  listWrap.innerHTML = '<div class="list-head">' + (dayOffset===0?'Today':'Tomorrow') + ' · ' + events.length + ' event' + (events.length===1?'':'s') + '</div>' + html;
+  const hiddenCount = dayEvents.length - events.length;
+  const hiddenNote = hiddenCount > 0 ? ' · ' + hiddenCount + ' hidden by filters' : '';
+  listWrap.innerHTML = '<div class="list-head">' + (dayOffset===0?'Today':'Tomorrow') + ' · ' + events.length + ' event' + (events.length===1?'':'s') + hiddenNote + '</div>' + html;
 
   tickCountdowns();
 }
@@ -519,6 +744,7 @@ function tickCountdowns(){
   });
 }
 
+/* Timeline strip disabled per v2 plan decision #2 (kept commented out, not deleted, in case we bring it back)
 function renderLanes(events){
   const maps = {};
   events.forEach(e=>{ (maps[e.map] = maps[e.map]||[]).push(e); });
@@ -543,9 +769,9 @@ function renderLanes(events){
   for(let h=0; h<24; h+=2) ticksHtml += '<span>' + String(h).padStart(2,'0') + '</span>';
   hourTicks.innerHTML = ticksHtml;
 }
+*/
 
 function renderFallback(){
-  document.getElementById('lanesWrap').style.display = 'none';
   const listWrap = document.getElementById('listWrap');
   let html = '<div class="fallback">Couldn\'t reach the live schedule from this page (the API may block browser requests from here). ';
   html += 'Check <a href="https://metaforge.app/arc-raiders/event-timers" target="_blank">metaforge.app/arc-raiders/event-timers</a> directly for live countdowns.</div>';
@@ -561,7 +787,17 @@ function renderFallback(){
 
 function updateClock(){
   const now = new Date();
-  document.getElementById('clock').innerHTML = new Intl.DateTimeFormat('en-GB',{timeZone:LONDON_TZ,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now) + '<small>Europe/London</small>';
+  const parts = new Intl.DateTimeFormat('en-GB',{timeZone:LONDON_TZ,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(now);
+  let h=0,m=0,s=0;
+  parts.forEach(p=>{
+    if(p.type==='hour') h=parseInt(p.value,10)%24;
+    if(p.type==='minute') m=parseInt(p.value,10);
+    if(p.type==='second') s=parseInt(p.value,10);
+  });
+  const ampm = h>=12 ? 'pm' : 'am';
+  let h12 = h%12; if(h12===0) h12=12;
+  const timeStr = h12 + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0') + ' ' + ampm;
+  document.getElementById('clock').innerHTML = timeStr + '<small>Europe/London</small>';
 }
 
 document.getElementById('tabToday').addEventListener('click', ()=>{
@@ -578,6 +814,55 @@ document.getElementById('tabTomorrow').addEventListener('click', ()=>{
 });
 document.getElementById('refreshBtn').addEventListener('click', loadEvents);
 
+document.getElementById('filtersToggleBtn').addEventListener('click', ()=>{
+  const panel = document.getElementById('filtersPanel');
+  const btn = document.getElementById('filtersToggleBtn');
+  const showing = panel.style.display !== 'none';
+  panel.style.display = showing ? 'none' : 'block';
+  btn.textContent = showing ? 'Filters ▾' : 'Filters ▴';
+});
+document.getElementById('timeRangeSelect').addEventListener('change', e=>{
+  filters.timeRange = e.target.value;
+  rerenderAfterFilterChange();
+});
+document.getElementById('majorOnlyToggle').addEventListener('change', e=>{
+  filters.majorOnly = e.target.checked;
+  rerenderAfterFilterChange();
+});
+document.getElementById('activeNowToggle').addEventListener('change', e=>{
+  filters.activeNow = e.target.checked;
+  rerenderAfterFilterChange();
+});
+document.getElementById('mapChips').addEventListener('click', e=>{
+  const btn = e.target.closest('.chip');
+  if(!btn) return;
+  const m = btn.getAttribute('data-map');
+  const idx = filters.maps.indexOf(m);
+  if(idx >= 0) filters.maps.splice(idx,1); else filters.maps.push(m);
+  btn.classList.toggle('active');
+  rerenderAfterFilterChange();
+});
+document.getElementById('typeChips').addEventListener('click', e=>{
+  const btn = e.target.closest('.chip');
+  if(!btn) return;
+  const t = btn.getAttribute('data-type');
+  const idx = filters.types.indexOf(t);
+  if(idx >= 0) filters.types.splice(idx,1); else filters.types.push(t);
+  btn.classList.toggle('active');
+  rerenderAfterFilterChange();
+});
+document.getElementById('typesSelectAll').addEventListener('click', ()=>{
+  filters.types = Object.keys(EVENT_INFO).slice();
+  renderFilterUI();
+  rerenderAfterFilterChange();
+});
+document.getElementById('typesClearAll').addEventListener('click', ()=>{
+  filters.types = [];
+  renderFilterUI();
+  rerenderAfterFilterChange();
+});
+
+renderFilterUI();
 document.getElementById('versionTag').textContent = 'v' + APP_VERSION;
 updateClock();
 setInterval(updateClock, 1000);
