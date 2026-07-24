@@ -135,7 +135,7 @@
     color:var(--amber);
     background:var(--panel2);
   }
-  .filters-toggle-row{margin-bottom:10px;}
+  .filters-toggle-row{display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap;}
   .filters-toggle{
     background:var(--panel);
     border:1px solid var(--line);
@@ -150,6 +150,44 @@
     cursor:pointer;
   }
   .filters-toggle:hover{border-color:var(--amber);color:var(--amber);}
+  .toggle-switch-wrap{display:flex;align-items:center;gap:8px;}
+  .toggle-switch-label{
+    font-size:12px;
+    color:var(--dim);
+    font-family:'Chakra Petch',sans-serif;
+    font-weight:600;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+  }
+  .toggle-switch{
+    position:relative;
+    width:44px;
+    height:24px;
+    border-radius:12px;
+    background:var(--panel2);
+    border:1px solid var(--line);
+    cursor:pointer;
+    padding:0;
+    flex-shrink:0;
+  }
+  .toggle-knob{
+    position:absolute;
+    top:2px;
+    left:2px;
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    background:var(--dim);
+    transition:transform 0.2s ease, background-color 0.2s ease;
+  }
+  .toggle-switch.on{
+    background:rgba(209,69,59,0.25);
+    border-color:var(--danger);
+  }
+  .toggle-switch.on .toggle-knob{
+    transform:translateX(20px);
+    background:var(--danger);
+  }
   .filters-panel{
     background:var(--panel);
     border:1px solid var(--line);
@@ -368,6 +406,12 @@
 
   <div class="filters-toggle-row">
     <button id="filtersToggleBtn" class="filters-toggle">Filters ▾</button>
+    <div class="toggle-switch-wrap">
+      <span class="toggle-switch-label">Active now</span>
+      <button id="activeNowBtn" class="toggle-switch" role="switch" aria-checked="false">
+        <span class="toggle-knob"></span>
+      </button>
+    </div>
   </div>
   <div id="filtersPanel" class="filters-panel" style="display:none;">
     <div class="filter-group">
@@ -382,7 +426,6 @@
     </div>
     <div class="filter-group filter-toggles">
       <label class="toggle-label"><input type="checkbox" id="majorOnlyToggle"> Major events only</label>
-      <label class="toggle-label"><input type="checkbox" id="activeNowToggle"> Active now only</label>
     </div>
     <div class="filter-group">
       <label class="filter-label">Maps</label>
@@ -414,7 +457,7 @@
 </div>
 
 <script>
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "2.1.1";
 const WORKER_URL = "https://spring-truth-3ac3.ross-0f3.workers.dev";
 const API_URL = "https://metaforge.app/api/arc-raiders/events-schedule";
 const LONDON_TZ = "Europe/London";
@@ -604,7 +647,9 @@ function applyFilters(events){
 function renderFilterUI(){
   document.getElementById('timeRangeSelect').value = filters.timeRange;
   document.getElementById('majorOnlyToggle').checked = filters.majorOnly;
-  document.getElementById('activeNowToggle').checked = filters.activeNow;
+  const activeNowBtn = document.getElementById('activeNowBtn');
+  activeNowBtn.classList.toggle('on', filters.activeNow);
+  activeNowBtn.setAttribute('aria-checked', String(filters.activeNow));
   const mapChips = document.getElementById('mapChips');
   mapChips.innerHTML = MAP_LIST.map(m =>
     '<button class="chip' + (filters.maps.includes(m) ? ' active' : '') + '" data-map="' + m + '">' + m + '</button>'
@@ -829,8 +874,11 @@ document.getElementById('majorOnlyToggle').addEventListener('change', e=>{
   filters.majorOnly = e.target.checked;
   rerenderAfterFilterChange();
 });
-document.getElementById('activeNowToggle').addEventListener('change', e=>{
-  filters.activeNow = e.target.checked;
+document.getElementById('activeNowBtn').addEventListener('click', ()=>{
+  filters.activeNow = !filters.activeNow;
+  const btn = document.getElementById('activeNowBtn');
+  btn.classList.toggle('on', filters.activeNow);
+  btn.setAttribute('aria-checked', String(filters.activeNow));
   rerenderAfterFilterChange();
 });
 document.getElementById('mapChips').addEventListener('click', e=>{
