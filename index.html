@@ -478,7 +478,7 @@
 </div>
 
 <script>
-const APP_VERSION = "2.2.3";
+const APP_VERSION = "2.2.4";
 const WORKER_URL = "https://spring-truth-3ac3.ross-0f3.workers.dev";
 const API_URL = "https://metaforge.app/api/arc-raiders/events-schedule";
 const LONDON_TZ = "Europe/London";
@@ -712,7 +712,7 @@ function renderFilterUI(){
   activeNowBtn.classList.toggle('on', filters.activeNow);
   activeNowBtn.setAttribute('aria-checked', String(filters.activeNow));
   const mapChips = document.getElementById('mapChips');
-  mapChips.innerHTML = MAP_LIST.map(m =>
+  mapChips.innerHTML = getAllKnownMapNames().map(m =>
     '<button class="chip' + (filters.maps.includes(m) ? ' active' : '') + '" data-map="' + m + '">' + m + '</button>'
   ).join('');
   const typeChips = document.getElementById('typeChips');
@@ -732,6 +732,21 @@ function renderTierUI(){
   }).join('');
 }
 
+function getAllKnownMapNames(){
+  const names = new Set(MAP_LIST);
+  allEvents.forEach(e => names.add(e.map));
+  return Array.from(names).sort();
+}
+function reconcileFilterMaps(){
+  let changed = false;
+  allEvents.forEach(e=>{
+    if(!filters.maps.includes(e.map)){
+      filters.maps.push(e.map);
+      changed = true;
+    }
+  });
+  if(changed) saveFilters();
+}
 function reconcileFilterTypes(){
   let changed = false;
   const matchesAny = (typeKey) => filters.types.some(t => typeKey===t || typeKey.includes(t) || t.includes(typeKey));
@@ -783,6 +798,7 @@ async function loadEvents(){
       if(normalized.length === 0) throw new Error("no recognizable events in response");
       allEvents = normalized;
       usingFallback = false;
+      reconcileFilterMaps();
       reconcileFilterTypes();
       renderTierUI();
       renderFilterUI();
