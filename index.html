@@ -478,7 +478,7 @@
 </div>
 
 <script>
-const APP_VERSION = "2.2.4";
+const APP_VERSION = "2.2.5";
 const WORKER_URL = "https://spring-truth-3ac3.ross-0f3.workers.dev";
 const API_URL = "https://metaforge.app/api/arc-raiders/events-schedule";
 const LONDON_TZ = "Europe/London";
@@ -716,7 +716,7 @@ function renderFilterUI(){
     '<button class="chip' + (filters.maps.includes(m) ? ' active' : '') + '" data-map="' + m + '">' + m + '</button>'
   ).join('');
   const typeChips = document.getElementById('typeChips');
-  typeChips.innerHTML = Object.keys(EVENT_INFO).map(k => {
+  typeChips.innerHTML = getAllKnownEventNames().map(k => {
     const nice = k.replace(/\b\w/g, c => c.toUpperCase());
     return '<button class="chip' + (filters.types.includes(k) ? ' active' : '') + '" data-type="' + k + '">' + nice + '</button>';
   }).join('');
@@ -1003,7 +1003,7 @@ document.getElementById('typeChips').addEventListener('click', e=>{
   rerenderAfterFilterChange();
 });
 document.getElementById('typesSelectAll').addEventListener('click', ()=>{
-  filters.types = Object.keys(EVENT_INFO).slice();
+  filters.types = getAllKnownEventNames();
   renderFilterUI();
   rerenderAfterFilterChange();
 });
