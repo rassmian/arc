@@ -478,7 +478,7 @@
 </div>
 
 <script>
-const APP_VERSION = "2.2.5";
+const APP_VERSION = "2.3.1";
 const WORKER_URL = "https://spring-truth-3ac3.ross-0f3.workers.dev";
 const API_URL = "https://metaforge.app/api/arc-raiders/events-schedule";
 const LONDON_TZ = "Europe/London";
@@ -817,7 +817,16 @@ async function loadEvents(){
 function eventsForDay(offset){
   const target = new Date(Date.now() + offset*86400000);
   const key = londonDateKey(target);
-  return allEvents.filter(e => londonDateKey(e.start) === key).sort((a,b)=>a.start-b.start);
+  const now = new Date();
+  return allEvents
+    .filter(e => londonDateKey(e.start) === key && e.end > now)
+    .sort((a,b)=>{
+      const aLive = now >= a.start && now < a.end;
+      const bLive = now >= b.start && now < b.end;
+      if(aLive !== bLive) return aLive ? -1 : 1;
+      if(aLive) return a.end - b.end;   // live: soonest-ending first
+      return a.start - b.start; // upcoming: soonest-starting first
+    });
 }
 
 function fmtCountdown(ms){
