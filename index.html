@@ -363,6 +363,21 @@
     flex-shrink:0;
   }
   .card-window{font-size:12px;color:var(--dim);}
+  .bell-btn{
+    margin-top:6px;
+    background:var(--panel2);
+    border:1px solid var(--line);
+    border-radius:14px;
+    font-size:13px;
+    padding:4px 10px;
+    cursor:pointer;
+    line-height:1;
+  }
+  .bell-btn.active{
+    border-color:var(--amber);
+    background:rgba(232,163,61,0.15);
+  }
+  .bell-btn:disabled{opacity:0.5;cursor:default;}
   .card-countdown{font-size:16px;font-weight:700;color:var(--amber);}
   .card.active .card-countdown{color:var(--danger);}
   .badge{
@@ -478,8 +493,8 @@
 </div>
 
 <script>
-const APP_VERSION = "2.3.1";
-const WORKER_URL = "https://spring-truth-3ac3.ross-0f3.workers.dev";
+const APP_VERSION = "3.0.0";
+const WORKER_URL = "https://arc-raiders-push-worker.ross-0f3.workers.dev";
 const API_URL = "https://metaforge.app/api/arc-raiders/events-schedule";
 const LONDON_TZ = "Europe/London";
 
@@ -521,6 +536,104 @@ function textColorForBg(hex){
   const {r,g,b} = hexToRgb(hex);
   const lum = (0.299*r + 0.587*g + 0.114*b)/255;
   return lum > 0.55 ? '#0b1210' : '#ffffff';
+}
+
+const VAPID_PUBLIC_KEY = "BPrMdr7CXOsBG9Tmkt9GPnxQZOrN1lBpCCr_sQMnMAn3mUsCP08Ci_2q6tjgm5lcPwU40zvqe-OeEVoT2nLG6gI";
+const REMINDERS_LOCAL_KEY = "arc-tracker-web-push-reminders";
+
+function eventKey(e){
+  return e.name.toLowerCase().trim() + "|" + e.map.toLowerCase().trim() + "|" + e.start.getTime();
+}
+
+function loadLocalReminders(){
+  try{
+    const raw = localStorage.getItem(REMINDERS_LOCAL_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  }catch(e){
+    return new Set();
+  }
+}
+function saveLocalReminders(set){
+  try{ localStorage.setItem(REMINDERS_LOCAL_KEY, JSON.stringify(Array.from(set))); }catch(e){ /* storage unavailable, ignore */ }
+}
+let localReminders = loadLocalReminders();
+let lastRenderedEvents = [];
+let swRegistration = null;
+
+function urlBase64ToUint8Array(base64String){
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for(let i = 0; i < rawData.length; ++i){
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+async function ensureServiceWorker(){
+  if(!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
+  if(!swRegistration){
+    swRegistration = await navigator.serviceWorker.register("./sw.js");
+    await navigator.serviceWorker.ready;
+  }
+  return swRegistration;
+}
+
+async function getOrCreateSubscription(){
+  const reg = await ensureServiceWorker();
+  if(!reg) return null;
+  let sub = await reg.pushManager.getSubscription();
+  if(!sub){
+    if(Notification.permission === "denied") return null;
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+  }
+  return sub;
+}
+
+async function toggleEventReminder(e, btnEl){
+  const key = eventKey(e);
+  const isSet = localReminders.has(key);
+  btnEl.disabled = true;
+  try{
+    const sub = await getOrCreateSubscription();
+    if(!sub){
+      alert("Notifications are blocked for this site. Enable them in your browser's site settings to set reminders.");
+      btnEl.disabled = false;
+      return;
+    }
+    if(isSet){
+      await fetch(WORKER_URL + "/unsubscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription: sub.toJSON(), eventKey: key })
+      });
+      localReminders.delete(key);
+    }else{
+      await fetch(WORKER_URL + "/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subscription: sub.toJSON(),
+          eventKey: key,
+          eventName: e.name,
+          eventMap: e.map,
+          startTimeMs: e.start.getTime(),
+          endTimeMs: e.end.getTime()
+        })
+      });
+      localReminders.add(key);
+    }
+    saveLocalReminders(localReminders);
+    if(usingFallback) renderFallback(); else render();
+  }catch(err){
+    console.log("Reminder toggle failed: " + String(err));
+  }finally{
+    btnEl.disabled = false;
+  }
 }
 
 function londonDateKey(d){
@@ -855,7 +968,8 @@ function render(){
   }
 
   let html = '';
-  events.forEach(e=>{
+  lastRenderedEvents = events;
+  events.forEach((e, idx)=>{
     const now = new Date();
     const active = now >= e.start && now < e.end;
     const upcoming = now < e.start;
@@ -870,6 +984,10 @@ function render(){
     html += '<div class="card-time">';
     html += '<div class="card-window">' + londonTimeStr(e.start) + ' – ' + londonTimeStr(e.end) + '</div>';
     html += '<div class="card-countdown countdown-val">' + (active ? 'active · ends in ' : 'starts in ') + '</div>';
+    if(upcoming){
+      const reminded = localReminders.has(eventKey(e));
+      html += '<button class="bell-btn' + (reminded?' active':'') + '" data-idx="' + idx + '" aria-label="Toggle reminder">' + (reminded ? '🔔' : '🔕') + '</button>';
+    }
     html += '</div></div>';
   });
   const hiddenCount = dayEvents.length - events.length;
@@ -969,6 +1087,15 @@ document.getElementById('tabTomorrow').addEventListener('click', ()=>{
   if(usingFallback) renderFallback(); else render();
 });
 document.getElementById('refreshBtn').addEventListener('click', loadEvents);
+
+document.getElementById('listWrap').addEventListener('click', async (e)=>{
+  const btn = e.target.closest('.bell-btn');
+  if(!btn) return;
+  const idx = parseInt(btn.getAttribute('data-idx'), 10);
+  const ev = lastRenderedEvents[idx];
+  if(!ev) return;
+  await toggleEventReminder(ev, btn);
+});
 
 document.getElementById('filtersToggleBtn').addEventListener('click', ()=>{
   const panel = document.getElementById('filtersPanel');
