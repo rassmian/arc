@@ -413,6 +413,41 @@
   .ref-item .d{font-size:12px;color:var(--dim);margin-top:2px;}
   .attrib{text-align:center;font-size:11px;color:var(--dim);margin-top:24px;}
   .attrib a{color:var(--dim);}
+
+  /* v3.1 view tabs + Ermal */
+  .view-tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .view-tabs button{
+    flex:1;background:var(--panel);border:1px solid var(--line);color:var(--dim);
+    font-family:'Chakra Petch',sans-serif;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;
+    font-size:14px;padding:12px;border-radius:6px;cursor:pointer;
+  }
+  .view-tabs button.active{border-color:var(--amber);color:var(--amber);background:var(--panel2);}
+  .rotation-box{
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:12px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .rotation-label{font-size:12px;color:var(--dim);}
+  .rotation-val{font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--amber);}
+  .offer{
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;margin-bottom:8px;cursor:pointer;
+    border-left:4px solid var(--line);
+  }
+  .offer.r-common{border-left-color:#8fa199;}
+  .offer.r-uncommon{border-left-color:#5fae5f;}
+  .offer.r-rare{border-left-color:#7a8fd1;}
+  .offer.r-epic{border-left-color:#b06bc2;}
+  .offer.r-legendary{border-left-color:#e8a33d;}
+  .offer-main{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;}
+  .offer-name{font-family:'Chakra Petch',sans-serif;font-weight:600;font-size:15px;color:var(--text);}
+  .offer-sub{font-size:12px;color:var(--dim);margin-top:2px;text-transform:capitalize;}
+  .offer-cost{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--amber);white-space:nowrap;text-align:right;}
+  .offer-cost.barter{color:var(--teal);}
+  .offer-detail{display:none;border-top:1px solid var(--line);padding:10px 14px 12px;font-size:13px;color:var(--text);}
+  .offer.open .offer-detail{display:block;}
+  .offer-detail .desc{color:var(--dim);margin-bottom:8px;}
+  .offer-detail .need-head{font-size:11px;letter-spacing:0.6px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;}
+  .offer-detail ul{margin:0;padding-left:18px;}
+  .offer-detail li{margin:2px 0;}
 </style>
 </head>
 <body>
@@ -425,6 +460,12 @@
     <div class="clock" id="clock">--:--:--<small>Europe/London</small></div>
   </div>
 
+  <div class="view-tabs">
+    <button class="active" id="viewTabEvents">Events</button>
+    <button id="viewTabErmal">Ermal</button>
+  </div>
+
+  <div id="eventsView">
   <div class="status-bar">
     <span id="statusText">Connecting to event feed…</span>
     <button id="refreshBtn">Refresh now</button>
@@ -487,13 +528,22 @@
   <div id="listWrap">
     <div class="empty" id="loadingMsg">Loading event schedule…</div>
   </div>
+  </div><!-- /eventsView -->
+
+  <div id="ermalView" style="display:none;">
+    <div class="status-bar">
+      <span id="ermalStatus">Loading Ermal's offers…</span>
+      <button id="ermalRefreshBtn">Refresh now</button>
+    </div>
+    <div id="ermalWrap"><div class="empty">Loading…</div></div>
+  </div>
 
   <div class="attrib">Event data from <a href="https://metaforge.app/arc-raiders" target="_blank" style="color:var(--amber);">MetaForge</a>, a community-maintained resource for ARC Raiders. Not affiliated with Embark Studios.</div>
 
 </div>
 
 <script>
-const APP_VERSION = "3.0.0";
+const APP_VERSION = "3.1.1";
 const WORKER_URL = "https://arc-raiders-push-worker.ross-0f3.workers.dev";
 const API_URL = "https://metaforge.app/api/arc-raiders/events-schedule";
 const LONDON_TZ = "Europe/London";
@@ -606,14 +656,20 @@ async function toggleEventReminder(e, btnEl){
       return;
     }
     if(isSet){
-      await fetch(WORKER_URL + "/unsubscribe", {
+      const res = await fetch(WORKER_URL + "/unsubscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subscription: sub.toJSON(), eventKey: key })
       });
+      if(!res.ok){
+        const text = await res.text().catch(()=>"(no response body)");
+        alert("Failed to cancel reminder. Server said: " + res.status + " " + text);
+        btnEl.disabled = false;
+        return;
+      }
       localReminders.delete(key);
     }else{
-      await fetch(WORKER_URL + "/subscribe", {
+      const res = await fetch(WORKER_URL + "/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -625,11 +681,18 @@ async function toggleEventReminder(e, btnEl){
           endTimeMs: e.end.getTime()
         })
       });
+      if(!res.ok){
+        const text = await res.text().catch(()=>"(no response body)");
+        alert("Failed to set reminder. Server said: " + res.status + " " + text);
+        btnEl.disabled = false;
+        return;
+      }
       localReminders.add(key);
     }
     saveLocalReminders(localReminders);
     if(usingFallback) renderFallback(); else render();
   }catch(err){
+    alert("Reminder toggle failed: " + String(err));
     console.log("Reminder toggle failed: " + String(err));
   }finally{
     btnEl.disabled = false;
@@ -1158,6 +1221,143 @@ document.getElementById('tierChips').addEventListener('click', e=>{
   if(usingFallback) renderFallback(); else render();
 });
 
+
+/* ===== v3.1 Ermal weekly offers + view tabs ===== */
+const ERMAL_URL = WORKER_URL + "/ermal";
+const VIEW_KEY = "arc-tracker-view";
+let ermalOffers = [];
+let ermalLoaded = false;
+let ermalLoading = false;
+let currentView = "events";
+
+function escHtml(v){
+  return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtCoins(n){
+  const x = Number(n);
+  return isFinite(x) ? x.toLocaleString('en-GB') : '?';
+}
+function fmtLongCountdown(ms){
+  if(ms < 0) ms = 0;
+  const totalSec = Math.floor(ms/1000);
+  const d = Math.floor(totalSec/86400);
+  const h = Math.floor((totalSec%86400)/3600);
+  const m = Math.floor((totalSec%3600)/60);
+  const s = totalSec%60;
+  const pad = n => String(n).padStart(2,'0');
+  return (d>0 ? d + 'd ' : '') + pad(h) + ':' + pad(m) + ':' + pad(s);
+}
+function londonDayShort(d){
+  return new Intl.DateTimeFormat('en-GB',{timeZone:LONDON_TZ,weekday:'short'}).format(d);
+}
+function parseOffers(json){
+  const list = json && Array.isArray(json.offers) ? json.offers : [];
+  return list.map(o => {
+    const start = new Date(o.offer_start), end = new Date(o.offer_end);
+    return {
+      id: o.id,
+      title: o.offer_title || (o.item && o.item.name) || 'Unknown offer',
+      cost: Number(o.coin_cost) || 0,
+      start: start, end: end,
+      accepted: Array.isArray(o.accepted_items) ? o.accepted_items.filter(a => a && a.name) : [],
+      item: o.item || null
+    };
+  }).filter(o => !isNaN(o.end.getTime()));
+}
+function nextRotation(){
+  const now = Date.now();
+  const ends = ermalOffers.map(o => o.end.getTime()).filter(t => t > now);
+  return ends.length ? Math.min.apply(null, ends) : null;
+}
+function renderErmal(){
+  const wrap = document.getElementById('ermalWrap');
+  const now = Date.now();
+  const live = ermalOffers.filter(o => o.end.getTime() > now && (isNaN(o.start.getTime()) || o.start.getTime() <= now + 60000));
+  if(live.length === 0){
+    wrap.innerHTML = '<div class="empty">No current offers found.</div>';
+    return;
+  }
+  const rot = nextRotation();
+  let html = '<div class="rotation-box"><div><div class="rotation-label">Offers rotate</div>' +
+    '<div class="rotation-label">' + (rot ? escHtml(londonDayShort(new Date(rot)) + ' ' + londonTimeStr(new Date(rot))) + ' UK' : '') + '</div></div>' +
+    '<div class="rotation-val" id="ermalCountdown">' + (rot ? fmtLongCountdown(rot - now) : '--') + '</div></div>';
+  html += '<div class="list-head">' + live.length + ' weekly offer' + (live.length===1?'':'s') + ' · tap for details</div>';
+  live.forEach(o => {
+    const rarity = o.item && o.item.rarity ? String(o.item.rarity).toLowerCase().replace(/[^a-z]/g,'') : '';
+    const sub = o.item ? [o.item.rarity, o.item.item_type].filter(Boolean).join(' · ') : '';
+    const barter = o.cost === 0;
+    html += '<div class="offer' + (rarity ? ' r-' + rarity : '') + '">';
+    html += '<div class="offer-main"><div><div class="offer-name">' + escHtml(o.title) + '</div>' +
+      (sub ? '<div class="offer-sub">' + escHtml(sub) + '</div>' : '') + '</div>';
+    html += '<div class="offer-cost' + (barter ? ' barter' : '') + '">' + (barter ? 'Barter' : fmtCoins(o.cost) + ' coins') + '</div></div>';
+    html += '<div class="offer-detail">';
+    if(o.item && o.item.description) html += '<div class="desc">' + escHtml(o.item.description) + '</div>';
+    if(o.accepted.length){
+      html += '<div class="need-head">' + (barter ? 'Hand in' : 'Accepted items') + '</div><ul>';
+      o.accepted.forEach(a => {
+        const label = a.is_category ? a.name + ' (any)' : a.name;
+        html += '<li>' + (a.amount ? escHtml(a.amount) + '× ' : '') + escHtml(label) + '</li>';
+      });
+      html += '</ul>';
+    } else if(!(o.item && o.item.description)) {
+      html += '<div class="desc">No extra details.</div>';
+    }
+    html += '</div></div>';
+  });
+  wrap.innerHTML = html;
+}
+function tickErmal(){
+  if(currentView !== 'ermal') return;
+  const el = document.getElementById('ermalCountdown');
+  if(!el) return;
+  const rot = nextRotation();
+  if(rot == null){ loadErmal(); return; }
+  el.textContent = fmtLongCountdown(rot - Date.now());
+}
+async function loadErmal(){
+  if(ermalLoading) return;
+  ermalLoading = true;
+  const st = document.getElementById('ermalStatus');
+  st.textContent = "Checking Ermal's offers…";
+  try{
+    const json = await tryFetchJson(ERMAL_URL, 8000);
+    const offers = parseOffers(json);
+    if(offers.length === 0) throw new Error("no offers in response");
+    ermalOffers = offers;
+    ermalLoaded = true;
+    st.textContent = "Updated " + londonTimeStr(new Date()) + " UK time";
+    renderErmal();
+  }catch(err){
+    st.textContent = ermalLoaded ? "Couldn't refresh (" + err.message + ") — showing last data" : "Couldn't load offers (" + err.message + ")";
+    if(!ermalLoaded) document.getElementById('ermalWrap').innerHTML = '<div class="empty">Ermal\'s offers are unavailable right now.</div>';
+  }finally{
+    ermalLoading = false;
+  }
+}
+function setView(v){
+  currentView = (v === 'ermal') ? 'ermal' : 'events';
+  document.getElementById('eventsView').style.display = currentView === 'events' ? '' : 'none';
+  document.getElementById('ermalView').style.display = currentView === 'ermal' ? '' : 'none';
+  document.getElementById('viewTabEvents').classList.toggle('active', currentView === 'events');
+  document.getElementById('viewTabErmal').classList.toggle('active', currentView === 'ermal');
+  try{ localStorage.setItem(VIEW_KEY, currentView); }catch(e){}
+  if(currentView === 'ermal'){
+    if(!ermalLoaded) loadErmal(); else renderErmal();
+  } else if(!usingFallback){
+    tickCountdowns();
+  }
+}
+document.getElementById('viewTabEvents').addEventListener('click', ()=> setView('events'));
+document.getElementById('viewTabErmal').addEventListener('click', ()=> setView('ermal'));
+document.getElementById('ermalRefreshBtn').addEventListener('click', loadErmal);
+document.getElementById('ermalWrap').addEventListener('click', e=>{
+  const card = e.target.closest('.offer');
+  if(card) card.classList.toggle('open');
+});
+setInterval(tickErmal, 1000);
+setInterval(()=>{ if(currentView === 'ermal') loadErmal(); }, 15*60000);
+/* ===== end v3.1 ===== */
+
 renderFilterUI();
 renderTierUI();
 document.getElementById('versionTag').textContent = 'v' + APP_VERSION;
@@ -1166,6 +1366,9 @@ setInterval(updateClock, 1000);
 setInterval(()=>{ if(!usingFallback) tickCountdowns(); }, 1000);
 setInterval(loadEvents, 60000);
 loadEvents();
+let savedView = 'events';
+try{ savedView = localStorage.getItem(VIEW_KEY) || 'events'; }catch(e){}
+if(savedView === 'ermal') setView('ermal');
 </script>
 </body>
 </html>
